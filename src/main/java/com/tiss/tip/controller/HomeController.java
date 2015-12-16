@@ -96,7 +96,7 @@ public class HomeController {
 	@RequestMapping(value = "/malwareIncident/", method = RequestMethod.GET)
 	public @ResponseBody MalwareIncident getMalwareIncident() {
 		logger.info("Start getMalwareIncident");
-		 
+		 //simple comment.
 		//return malwareIncidentService.getByUrl("http://95.25.112.171:2830/uxgyw");
 		return malwareIncidentService.getById("AVGlfVGnKMG7Pqq8lt-L");
 	}
