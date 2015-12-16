@@ -15,6 +15,13 @@
 		<level value="info" />
 	</logger>
 	
+	<!--  spring data - elasticsearch -->
+	
+	<logger name=" org.springframework.data.elasticsearch">
+		<level value="debug" />
+	</logger>
+	
+	
 	<!-- 3rdparty Loggers -->
 	<logger name="org.springframework.core">
 		<level value="info" />

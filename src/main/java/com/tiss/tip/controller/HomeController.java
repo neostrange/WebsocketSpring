@@ -28,6 +28,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import com.tiss.tip.model.Incident;
 import com.tiss.tip.model.MalwareIncident;
 import com.tiss.tip.model.Origin;
+import com.tiss.tip.service.IncidentService;
 import com.tiss.tip.service.MalwareIncidentService;
 
 /**
@@ -44,6 +45,10 @@ public class HomeController {
 	
 	@Autowired
 	private MalwareIncidentService malwareIncidentService;
+	
+	
+	@Autowired
+	private IncidentService incidentService;
 	
 	
 
@@ -99,6 +104,15 @@ public class HomeController {
 		 //simple comment.
 		//return malwareIncidentService.getByUrl("http://95.25.112.171:2830/uxgyw");
 		return malwareIncidentService.getById("AVGlfVGnKMG7Pqq8lt-L");
+	}
+	
+	
+	@RequestMapping(value = "/incidents/", method = RequestMethod.GET)
+	public @ResponseBody List<Incident> getIncidents() {
+		logger.info("Start getMalwareIncident");
+		 
+
+		return incidentService.getByDstIP("203.124.40.62");
 	}
 
 }
