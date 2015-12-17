@@ -56,7 +56,9 @@ public class Incident implements Serializable {
 	@Field (type = FieldType.Object)
 	private Origin origin;
 	
-	
+	/**
+	 * Default Constructor
+	 */
 	public Incident(){}
 
 	/**

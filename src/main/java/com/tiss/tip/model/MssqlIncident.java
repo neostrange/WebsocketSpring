@@ -8,7 +8,12 @@ import org.slf4j.LoggerFactory;
  * to exploit the vulnerabilities emulated in the MSSQL service.
  */
 public class MssqlIncident extends Incident {
-	
+
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -1907957508908821555L;
+
 	/**
 	 * The logger for this class.
 	 */
@@ -31,7 +36,12 @@ public class MssqlIncident extends Incident {
 	 */
 	private String mssqlHostName;
 
-	
+	/**
+	 * Default Constructor
+	 */
+	public MssqlIncident() {
+	}
+
 	/**
 	 * Instantiates a new {@link MssqlIncident}.
 	 *
@@ -64,13 +74,13 @@ public class MssqlIncident extends Incident {
 			String protocol, Origin origin, String mssqlClientName, String mssqlCommand, String mssqlCommandStatus,
 			String mssqlHostName) {
 		super(dateTime, srcIP, srcPort, service, dstIP, dstPort, protocol, origin);
-		log.trace("Create new MssqlIncident instance with mssqlClientName [{}], mssqlCommandStatus [{}]", mssqlClientName, mssqlCommandStatus);
+		log.trace("Create new MssqlIncident instance with mssqlClientName [{}], mssqlCommandStatus [{}]",
+				mssqlClientName, mssqlCommandStatus);
 		this.mssqlClientName = mssqlClientName;
 		this.mssqlCommand = mssqlCommand;
 		this.mssqlCommandStatus = mssqlCommandStatus;
 		this.mssqlHostName = mssqlHostName;
 	}
-
 
 	/**
 	 * Gets the Mssql client name.
@@ -82,7 +92,6 @@ public class MssqlIncident extends Incident {
 		return mssqlClientName;
 	}
 
-	
 	/**
 	 * Sets the Mssql client name.
 	 *
@@ -94,7 +103,6 @@ public class MssqlIncident extends Incident {
 		this.mssqlClientName = mssql_clientname;
 	}
 
-	
 	/**
 	 * Gets the Mssql command executed by the attacker.
 	 *
@@ -116,7 +124,6 @@ public class MssqlIncident extends Incident {
 		this.mssqlCommand = mssql_command_cmd;
 	}
 
-	
 	/**
 	 * Gets the Mssql command status.
 	 *
@@ -127,7 +134,6 @@ public class MssqlIncident extends Incident {
 		return mssqlCommandStatus;
 	}
 
-	
 	/**
 	 * Sets the Mssql command status.
 	 *
@@ -139,7 +145,6 @@ public class MssqlIncident extends Incident {
 		this.mssqlCommandStatus = mssql_command_status;
 	}
 
-	
 	/**
 	 * Gets the Mssql hostname used by the attacker.
 	 *
@@ -149,7 +154,6 @@ public class MssqlIncident extends Incident {
 		log.trace("Get mssqlHostName, returns [{}]", mssqlHostName);
 		return mssqlHostName;
 	}
-
 
 	/**
 	 * Sets the Mssql hostname used by the attacker.

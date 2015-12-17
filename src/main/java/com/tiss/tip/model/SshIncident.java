@@ -10,7 +10,12 @@ import org.slf4j.LoggerFactory;
  * This class represents an SSH {@code Incident}.
  */
 public class SshIncident extends Incident {
-	
+
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 8309058635663320369L;
+
 	/**
 	 * The logger for this class.
 	 */
@@ -35,6 +40,12 @@ public class SshIncident extends Incident {
 	 * The SSH tool used by the attacker.
 	 */
 	private String tool;
+
+	/**
+	 * Default Constructor
+	 */
+	public SshIncident() {
+	}
 
 	/**
 	 * Instantiates a new {@link SshIncident}.
@@ -144,7 +155,8 @@ public class SshIncident extends Incident {
 	/**
 	 * Gets the list of commands the attacker attempted to execute.
 	 *
-	 * @return the list of {@link Input} commands the attacker attempted to execute
+	 * @return the list of {@link Input} commands the attacker attempted to
+	 *         execute
 	 */
 	public List<Input> getInputList() {
 		log.trace("Get InputList, returns [{}]", inputList);
@@ -155,7 +167,8 @@ public class SshIncident extends Incident {
 	 * Sets the list of commands the attacker attempted to execute.
 	 *
 	 * @param inputList
-	 *            the new list of {@link Input} commands the attacker attempted to execute
+	 *            the new list of {@link Input} commands the attacker attempted
+	 *            to execute
 	 */
 	public void setInputList(List<Input> inputList) {
 		log.trace("Set inputList to [{}]", inputList);

@@ -11,6 +11,11 @@ import org.slf4j.LoggerFactory;
  */
 public class MysqlIncident extends Incident {
 	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 7789853302667853725L;
+
+	/**
 	 * The logger for this class.
 	 */
 	private static Logger log = LoggerFactory.getLogger(MysqlIncident.class);
@@ -22,6 +27,11 @@ public class MysqlIncident extends Incident {
 	 */
 	private List<MysqlCommand> mysqlCommands;
 
+	/**
+	 * Default Constructor
+	 */
+	public MysqlIncident() {
+	}
 	/**
 	 * Instantiates a new mysql incident.
 	 *

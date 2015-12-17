@@ -7,7 +7,7 @@ import org.slf4j.LoggerFactory;
  * Singleton for storing MySQL commands for {@code MysqlIncident}.
  */
 public class MysqlCommand {
-	
+
 	/**
 	 * The logger for this class.
 	 */
@@ -21,8 +21,13 @@ public class MysqlCommand {
 	 * The op number associated with MySQL query.
 	 */
 	private String mysqlOp;
-	
-	
+
+	/**
+	 * Default Constructor
+	 */
+	public MysqlCommand() {
+	}
+
 	/**
 	 * Instantiates a new {@link MysqlCommand}.
 	 *
@@ -36,7 +41,7 @@ public class MysqlCommand {
 		this.mysqlQuery = mysqlQuery;
 		this.mysqlOp = mysqlOp;
 	}
-	
+
 	/**
 	 * Gets the MySQL query executed by the attacker.
 	 *
@@ -46,7 +51,7 @@ public class MysqlCommand {
 		log.trace("Get mysqlQuery, returns [{}]", mysqlQuery);
 		return mysqlQuery;
 	}
-	
+
 	/**
 	 * Sets the MySQL query executed by the attacker.
 	 *
@@ -57,7 +62,7 @@ public class MysqlCommand {
 		log.trace("Set mysqlQuery to [{}]", mysqlQuery);
 		this.mysqlQuery = mysqlQuery;
 	}
-	
+
 	/**
 	 * Gets the op number associated with MySQL query.
 	 *
@@ -67,7 +72,7 @@ public class MysqlCommand {
 		log.trace("Get mysqlOp, returns [{}]", mysqlOp);
 		return mysqlOp;
 	}
-	
+
 	/**
 	 * Sets the op number associated with MySQL query.
 	 *
@@ -78,6 +83,5 @@ public class MysqlCommand {
 		log.trace("Set mysqlOp to [{}]", mysqlOp);
 		this.mysqlOp = mysqlOp;
 	}
-
 
 }

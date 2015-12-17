@@ -10,6 +10,11 @@ import org.slf4j.LoggerFactory;
 public class SipIncident extends Incident {
 
 	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 4918607045344992358L;
+
+	/**
 	 * The logger for this class.
 	 */
 	private static Logger log = LoggerFactory.getLogger(SipIncident.class);

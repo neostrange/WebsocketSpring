@@ -1,15 +1,18 @@
 package com.tiss.tip.model;
 
 import java.util.List;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// TODO: Auto-generated Javadoc
 /**
  * This class represents an {@code Incident} on the Application Layer.
  */
 public class WebIncident extends Incident {
+
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -6871882271028102048L;
 
 	/**
 	 * The logger for this class.
@@ -54,9 +57,15 @@ public class WebIncident extends Incident {
 	private String userAgent;
 
 	/**
+	 * Default Constructor
+	 */
+	public WebIncident() {
+	}
+
+	/**
 	 * Instantiates a new web incident.
 	 *
-		 * @param dateTime
+	 * @param dateTime
 	 *            the date time
 	 * @param srcIP
 	 *            the source IP

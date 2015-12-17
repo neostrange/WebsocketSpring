@@ -26,6 +26,12 @@ public class Input {
 	private String dateTime;
 
 	/**
+	 * Default Constructor
+	 */
+	public Input() {
+	}
+
+	/**
 	 * Instantiates a new {@link Input}.
 	 *
 	 * @param command

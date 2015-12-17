@@ -27,6 +27,13 @@ public class Auth {
 	 * The datetime associated with the authentication attempt.
 	 */
 	private String dateTime;
+	
+	
+
+	/**
+	 * Default Constructor
+	 */
+	public Auth() {}
 
 	/**
 	 * Instantiate a new {@link Auth} object.

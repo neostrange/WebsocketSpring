@@ -23,6 +23,12 @@ public class WebRule {
 	private String ruleMessage;
 
 	/**
+	 * Default Constructor
+	 */
+	public WebRule() {
+	}
+
+	/**
 	 * Instantiates a new{@link WebRule}.
 	 *
 	 * @param ruleCategory

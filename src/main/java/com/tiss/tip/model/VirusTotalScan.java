@@ -26,6 +26,9 @@ public class VirusTotalScan {
 	 */
 	private HashMap<String, String> VTscanResults;
 
+	/**
+	 * Default Constructor
+	 */
 	public VirusTotalScan() {
 		super();
 	}

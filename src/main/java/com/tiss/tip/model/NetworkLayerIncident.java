@@ -10,6 +10,11 @@ import org.slf4j.LoggerFactory;
 public class NetworkLayerIncident extends Incident {
 	
 	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -7368523736195401769L;
+
+	/**
 	 * The logger for this class.
 	 */
 	private static Logger log = LoggerFactory.getLogger(NetworkLayerIncident.class);
@@ -35,6 +40,11 @@ public class NetworkLayerIncident extends Incident {
 	 */
 	private String icmpType;
 
+	/**
+	 * Default Constructor
+	 */
+	public NetworkLayerIncident() {
+	}
 	
 	/**
 	 * Instantiates a new {@link NetworkLayerIncident}.
