@@ -5,10 +5,12 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
-
 import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.search.aggregations.bucket.histogram.Histogram.Order;
+import org.elasticsearch.search.sort.SortBuilders;
+import org.elasticsearch.search.sort.SortOrder;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import static org.elasticsearch.index.query.QueryBuilders.nestedQuery;
 import static org.elasticsearch.index.query.QueryBuilders.termQuery;
@@ -16,6 +18,7 @@ import static org.elasticsearch.index.query.QueryBuilders.boolQuery;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.elasticsearch.annotations.Document;
 import org.springframework.data.elasticsearch.core.ElasticsearchTemplate;
 import org.springframework.data.elasticsearch.core.query.NativeSearchQueryBuilder;
 import org.springframework.data.elasticsearch.core.query.SearchQuery;
@@ -25,9 +28,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.tiss.tip.model.Incident;
 import com.tiss.tip.model.MalwareIncident;
 import com.tiss.tip.model.Origin;
+import com.tiss.tip.service.IncidentService;
 import com.tiss.tip.service.MalwareIncidentService;
 
 /**
@@ -44,7 +49,6 @@ public class HomeController {
 	
 	@Autowired
 	private MalwareIncidentService malwareIncidentService;
-	
 	
 
 	private static final Logger logger = LoggerFactory.getLogger(HomeController.class);
@@ -85,20 +89,41 @@ public class HomeController {
 	@RequestMapping(value = TipURIConstants.MALWARE_INCIDENT, method = RequestMethod.GET)
 	public @ResponseBody List<MalwareIncident> getMalwareIncidents() {
 		logger.info("Start getMalwareIncident");
-		 QueryBuilder builder =QueryBuilders.matchAllQuery();
-		
-		    SearchQuery searchQuery = new NativeSearchQueryBuilder().withQuery(builder).build();
-		    List<MalwareIncident> incidents = elasticsearchTemplate.queryForList(searchQuery, MalwareIncident.class);
+		QueryBuilder builder = QueryBuilders.wrapperQuery("{ \"match_all\" : {}}");
+
+		SearchQuery searchQuery = new NativeSearchQueryBuilder().withQuery(builder).build();
+		List<MalwareIncident> incidents = elasticsearchTemplate.queryForList(searchQuery, MalwareIncident.class);
 		return incidents;
 	}
-	
-	
+
+	@RequestMapping(value = "/recent/", method = RequestMethod.GET)
+	public @ResponseBody List<JsonNode> getRecentIncident() {
+		logger.info("Start getMalwareIncident");
+		QueryBuilder builder = QueryBuilders.wrapperQuery("{\"match\":{\"srcCountry\":\"China\"}}");
+
+		SearchQuery searchQuery = new NativeSearchQueryBuilder().withQuery(builder).withIndices("incident")
+				.withTypes("WebIncident", "SshIncident", "MalwareIncident")
+				.withSort(SortBuilders.fieldSort("dateTime")).build();
+
+		List<JsonNode> incidents = elasticsearchTemplate.queryForList(searchQuery, JsonNode.class);
+		System.out.println(incidents.size());
+		return incidents;
+	}
+
 	@RequestMapping(value = "/malwareIncident/", method = RequestMethod.GET)
 	public @ResponseBody MalwareIncident getMalwareIncident() {
 		logger.info("Start getMalwareIncident");
-		 //simple comment.
-		//return malwareIncidentService.getByUrl("http://95.25.112.171:2830/uxgyw");
+		// simple comment.
+		// return
+		// malwareIncidentService.getByUrl("http://95.25.112.171:2830/uxgyw");
 		return malwareIncidentService.getById("AVGlfVGnKMG7Pqq8lt-L");
+	}
+
+	@RequestMapping(value = "/try1/", method = RequestMethod.GET, produces = "application/json")
+	public @ResponseBody String getMalwareBySrcIP() {
+		logger.info("Get Malware By SrcIP");
+		return malwareIncidentService.getBySrcIP("95.25.112.171");
+
 	}
 
 }
