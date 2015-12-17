@@ -4,6 +4,8 @@ import java.io.Serializable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.elasticsearch.annotations.Document;
 import org.springframework.data.elasticsearch.annotations.Field;
 import org.springframework.data.elasticsearch.annotations.FieldType;
 
@@ -11,7 +13,7 @@ import org.springframework.data.elasticsearch.annotations.FieldType;
  * This is the main incident class which contains all the common elements found
  * in all its subtypes.
  */
-
+@Document(indexName= "incident", type="MalwareIncident")
 public class Incident implements Serializable {
 
 	/**
@@ -21,6 +23,17 @@ public class Incident implements Serializable {
 
 	/** The logger for this class. */
 	private static Logger log = LoggerFactory.getLogger(Incident.class);
+
+	
+	@Id
+	private String _id; 
+	public String get_id() {
+		return _id;
+	}
+
+	public void set_id(String _id) {
+		this._id = _id;
+	}
 
 	/**
 	 * The incident datetime.
