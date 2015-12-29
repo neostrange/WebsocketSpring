@@ -4,6 +4,9 @@ import java.util.HashMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.elasticsearch.annotations.Field;
+import org.springframework.data.elasticsearch.annotations.FieldIndex;
+import org.springframework.data.elasticsearch.annotations.FieldType;
 
 /**
  * This class contains the virustotal scan reference and individual scanner
@@ -19,11 +22,13 @@ public class VirusTotalScan {
 	/**
 	 * The URL for the full virustotal analysis result.
 	 */
+	@Field(type = FieldType.String, index = FieldIndex.not_analyzed)
 	private String permalink;
 	/**
 	 * HashMap scanner result of analysis, where key is scanner and value is its
 	 * result.
 	 */
+	@Field(type = FieldType.Nested)
 	private HashMap<String, String> VTscanResults;
 
 	/**

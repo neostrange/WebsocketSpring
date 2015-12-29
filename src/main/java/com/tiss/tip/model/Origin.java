@@ -4,6 +4,7 @@ import org.elasticsearch.common.geo.GeoPoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.elasticsearch.annotations.Field;
+import org.springframework.data.elasticsearch.annotations.FieldIndex;
 import org.springframework.data.elasticsearch.annotations.FieldType;
 
 // TODO: Auto-generated Javadoc
@@ -21,14 +22,17 @@ public class Origin {
 	/**
 	 * The country from where the attack originated.
 	 */
+	@Field(type = FieldType.String, index = FieldIndex.not_analyzed)
 	private String srcCountry;
 	/**
 	 * The country code from where the attack originated.
 	 */
+	@Field(type = FieldType.String, index = FieldIndex.not_analyzed)
 	private String srcCountryCode;
 	/**
 	 * The city from where the attack originated.
 	 */
+	@Field(type = FieldType.String, index = FieldIndex.not_analyzed)
 	private String city;
 	/**
 	 * The geolocation information regarding the sourceIP.

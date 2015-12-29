@@ -1,19 +1,18 @@
 package com.tiss.tip.model;
 
 import java.io.Serializable;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.annotation.Id;
-import org.springframework.data.elasticsearch.annotations.Document;
 import org.springframework.data.elasticsearch.annotations.Field;
+import org.springframework.data.elasticsearch.annotations.FieldIndex;
 import org.springframework.data.elasticsearch.annotations.FieldType;
 
 /**
  * This is the main incident class which contains all the common elements found
  * in all its subtypes.
  */
-@Document(indexName= "incident", type="MalwareIncident")
+//@Document(indexName = "incidents", type = "Incident")
 public class Incident implements Serializable {
 
 	/**
@@ -24,67 +23,80 @@ public class Incident implements Serializable {
 	/** The logger for this class. */
 	private static Logger log = LoggerFactory.getLogger(Incident.class);
 
-	
 	@Id
-	private String _id; 
-	public String get_id() {
-		return _id;
-	}
-
-	public void set_id(String _id) {
-		this._id = _id;
-	}
+	private String id;
 
 	/**
 	 * The incident datetime.
 	 */
+	@Field(type = FieldType.Date, index = FieldIndex.not_analyzed)
 	private String dateTime;
 	/**
 	 * IP of the source that the attack originated from.
 	 */
+	@Field(type = FieldType.Ip)
 	private String srcIP;
+	
 	/**
 	 * Source port where the attack originated from.
 	 */
+	
+	@Field(type = FieldType.Integer)
 	private int srcPort;
 	/**
 	 * The type of service.
 	 */
+	
+	@Field(type = FieldType.String, index = FieldIndex.not_analyzed)
 	private String service;
 	/**
 	 * This is the destination IP address of the targeted sensor.
 	 */
+	@Field(type = FieldType.Ip)
 	private String dstIP;
 	/**
 	 * This is the destination port of the targeted sensor.
 	 */
+	@Field(type = FieldType.Integer)
 	private int dstPort;
+	
 	/**
 	 * The transport layer protocol (tcp, udp, etc).
 	 */
+	@Field(type = FieldType.String, index = FieldIndex.not_analyzed)
 	private String protocol;
+	
 	/**
 	 * The information regarding the origin of the attack.
 	 */
-	@Field (type = FieldType.Object)
+	@Field(type = FieldType.Object)
 	private Origin origin;
-	
+
 	/**
 	 * Default Constructor
 	 */
-	public Incident(){}
+	public Incident() {
+	}
 
 	/**
 	 * Instantiates a new {@link Incident}.
 	 *
-	 * @param dateTime the date time
-	 * @param srcIP the source IP
-	 * @param srcPort the source port
-	 * @param service the service
-	 * @param dstIP the destination IP
-	 * @param dstPort the destination port
-	 * @param protocol the protocol
-	 * @param org the origin {@link Origin}
+	 * @param dateTime
+	 *            the date time
+	 * @param srcIP
+	 *            the source IP
+	 * @param srcPort
+	 *            the source port
+	 * @param service
+	 *            the service
+	 * @param dstIP
+	 *            the destination IP
+	 * @param dstPort
+	 *            the destination port
+	 * @param protocol
+	 *            the protocol
+	 * @param org
+	 *            the origin {@link Origin}
 	 */
 	public Incident(String dateTime, String srcIP, int srcPort, String service, String dstIP, int dstPort,
 			String protocol, Origin org) {
@@ -99,6 +111,16 @@ public class Incident implements Serializable {
 		this.protocol = protocol;
 		this.origin = org;
 	}
+	
+
+	public String getId() {
+		return id;
+	}
+
+	public void setId(String _id) {
+		this.id = _id;
+	}
+
 
 	/**
 	 * Gets the date time.
@@ -113,7 +135,8 @@ public class Incident implements Serializable {
 	/**
 	 * Sets the date time.
 	 *
-	 * @param datetime the new date time
+	 * @param datetime
+	 *            the new date time
 	 */
 	public void setDateTime(String datetime) {
 		log.trace("Set dateTime to [{}]", datetime);
@@ -133,7 +156,8 @@ public class Incident implements Serializable {
 	/**
 	 * Sets the src ip.
 	 *
-	 * @param srcIP the new src ip
+	 * @param srcIP
+	 *            the new src ip
 	 */
 	public void setSrcIP(String srcIP) {
 		log.trace("Set srcIP to [{}]", srcIP);
@@ -153,7 +177,8 @@ public class Incident implements Serializable {
 	/**
 	 * Sets the source port.
 	 *
-	 * @param srcPort the new source port
+	 * @param srcPort
+	 *            the new source port
 	 */
 	public void setSourcePort(int srcPort) {
 		log.trace("Set SourcePort to [{}]", srcPort);
@@ -172,7 +197,8 @@ public class Incident implements Serializable {
 	/**
 	 * Sets the service.
 	 *
-	 * @param service the new service
+	 * @param service
+	 *            the new service
 	 */
 	public void setService(String service) {
 		log.trace("Set Service to [{}]", service);
@@ -192,7 +218,8 @@ public class Incident implements Serializable {
 	/**
 	 * Sets the destination ip.
 	 *
-	 * @param dstIP the new destination ip
+	 * @param dstIP
+	 *            the new destination ip
 	 */
 	public void setDestinationIP(String dstIP) {
 		log.trace("Set DestinationIP to [{}]", dstIP);
@@ -212,7 +239,8 @@ public class Incident implements Serializable {
 	/**
 	 * Sets the dst port.
 	 *
-	 * @param dstPort the new dst port
+	 * @param dstPort
+	 *            the new dst port
 	 */
 	public void setDstPort(int dstPort) {
 		log.trace("Set dstPort to [{}]", dstPort);
@@ -232,7 +260,8 @@ public class Incident implements Serializable {
 	/**
 	 * Sets the protocol.
 	 *
-	 * @param protocol the new protocol
+	 * @param protocol
+	 *            the new protocol
 	 */
 	public void setProtocol(String protocol) {
 		log.trace("Set protocol to [{}]", protocol);
@@ -252,7 +281,8 @@ public class Incident implements Serializable {
 	/**
 	 * Sets the origin.
 	 *
-	 * @param org the new origin
+	 * @param org
+	 *            the new origin
 	 */
 	public void setOrigin(Origin org) {
 		log.trace("Set origin to [{}]", org);
