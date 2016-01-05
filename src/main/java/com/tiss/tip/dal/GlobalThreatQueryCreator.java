@@ -5,6 +5,7 @@ import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import org.elasticsearch.action.search.SearchResponse;
@@ -19,6 +20,7 @@ import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.aggregations.AggregationBuilders;
 import org.elasticsearch.search.aggregations.bucket.filters.InternalFilters;
 import org.elasticsearch.search.aggregations.bucket.terms.Terms;
+import org.elasticsearch.search.aggregations.metrics.cardinality.Cardinality;
 import org.elasticsearch.search.sort.SortBuilders;
 import org.elasticsearch.search.sort.SortOrder;
 import org.elasticsearch.search.aggregations.bucket.filters.Filters.Bucket;
@@ -72,6 +74,7 @@ public class GlobalThreatQueryCreator {
 		attackTypeFilter.put("sip", sip);
 		attackTypeFilter.put("web", web);
 		attackTypeFilter.put("malware", malware);
+		attackTypeFilter.put("all", null);
 	}
 
 	public static final String[] globalSummary = { "SSH Attacks", "Application Exploit Attempts", "Network Exploit",
@@ -84,18 +87,25 @@ public class GlobalThreatQueryCreator {
 	public static final String[] dbSummary = { "Total Attempts", "Mssql Attacks", "Mysql Attacks" };
 
 	// Extract IP and Lat/long
-	public List<JsonNode> getIPsandGeoLocation(String countryCode, String to, String from, String category) {
+	public List<JsonNode> getIPsandGeoLocation(String countryCode, String to, String from, int size, int minDocCount,
+			String category) {
 		QueryBuilder country = QueryBuilders.matchQuery("origin.srcCountryCode", countryCode);
 		BoolFilterBuilder filter = FilterBuilders.boolFilter();
 		if (attackTypeFilter.containsKey(category)) {
-			filter.must(attackTypeFilter.get(category));
-			query = from == null && to == null ? QueryBuilders.filteredQuery(country, filter)
-					: QueryBuilders.filteredQuery(country,
-							filter.must(ESQueryCreator.createDateTimeRangeFilter(from, to)));
+			if (attackTypeFilter.get(category) != null) {
+				filter.must(attackTypeFilter.get(category));
+				query = from == null && to == null ? QueryBuilders.filteredQuery(country, filter)
+						: QueryBuilders.filteredQuery(country,
+								filter.must(ESQueryCreator.createDateTimeRangeFilter(from, to)));
+			} else {
+				query = from == null && to == null ? country
+						: QueryBuilders.filteredQuery(country, ESQueryCreator.createDateTimeRangeFilter(from, to));
+			}
 
 			searchQuery = new NativeSearchQueryBuilder().withQuery(query).withSearchType(SearchType.COUNT)
 					.withIndices(QueryConstants.INCIDENT_INDEX).withTypes(QueryConstants.ALL_TYPES)
-					.addAggregation(AggregationBuilders.terms("IPs").field("srcIP").size(0)
+					.addAggregation(AggregationBuilders.terms("IPs").field("srcIP").size(size).minDocCount(minDocCount)
+							.order(Terms.Order.count(true))
 							.subAggregation(AggregationBuilders.terms("lat").field("origin.geoPoint.lat")
 									.showTermDocCountError(true))
 							.subAggregation(AggregationBuilders.terms("long").field("origin.geoPoint.lon")
@@ -112,7 +122,6 @@ public class GlobalThreatQueryCreator {
 					List<JsonNode> ipGeo = new ArrayList<JsonNode>();
 					Terms tmp = null;
 					String ip = null;
-					int i = 0;
 					for (Terms.Bucket b : t.getBuckets()) {
 						try {
 							ip = InetAddress.getByName(b.getKey()).getHostAddress();
@@ -123,9 +132,9 @@ public class GlobalThreatQueryCreator {
 						ips.put("ip", ip);
 						ips.put("hits", b.getDocCount());
 						tmp = b.getAggregations().get("lat");
-						ips.put("lat", tmp.getBuckets().get(0).getKey());
+						ips.put("lat", tmp.getBuckets().get(0).getKeyAsNumber());
 						tmp = b.getAggregations().get("long");
-						ips.put("long", tmp.getBuckets().get(0).getKey());
+						ips.put("long", tmp.getBuckets().get(0).getKeyAsNumber());
 						ipGeo.add(new ObjectMapper().convertValue(ips, JsonNode.class));
 					}
 					return ipGeo;
@@ -137,7 +146,7 @@ public class GlobalThreatQueryCreator {
 		}
 
 	}
-	
+
 	/**
 	 * 
 	 * @param from
@@ -198,12 +207,10 @@ public class GlobalThreatQueryCreator {
 				InternalFilters t = response.getAggregations().get("GlobalAgg");
 				int i = 0;
 				for (Bucket b : t.getBuckets()) {
-					if (b.getDocCount() > 0) {
-						bucket = new HashMap<String, Object>();
-						bucket.put("category", globalSummary[i].toString());
-						bucket.put("hits", String.valueOf(b.getDocCount()));
-						jnode.add(myObjectMapper.convertValue(bucket, JsonNode.class));
-					}
+					bucket = new HashMap<String, Object>();
+					bucket.put("category", globalSummary[i].toString());
+					bucket.put("hits", b.getDocCount());
+					jnode.add(myObjectMapper.convertValue(bucket, JsonNode.class));
 					i++;
 
 				}
@@ -214,8 +221,7 @@ public class GlobalThreatQueryCreator {
 
 	}
 
-	public List<JsonNode> getGlobalSSH(String from, String to, String countryCode) {
-
+	public List<JsonNode> getGlobalSSHUsernames(String from, String to, String countryCode, int size) {
 		QueryBuilder country = countryCode != null ? QueryBuilders.matchQuery("origin.srcCountryCode", countryCode)
 				: null;
 		query = from == null && to == null ? country
@@ -250,12 +256,10 @@ public class GlobalThreatQueryCreator {
 				InternalFilters t = response.getAggregations().get("GlobalSsh");
 				int i = 0;
 				for (Bucket b : t.getBuckets()) {
-					if (b.getDocCount() > 0) {
-						bucket = new HashMap<String, Object>();
-						bucket.put("category", sshSummary[i].toString());
-						bucket.put("hits", String.valueOf(b.getDocCount()));
-						jnode.add(myObjectMapper.convertValue(bucket, JsonNode.class));
-					}
+					bucket = new HashMap<String, Object>();
+					bucket.put("category", sshSummary[i].toString());
+					bucket.put("hits", b.getDocCount());
+					jnode.add(myObjectMapper.convertValue(bucket, JsonNode.class));
 					i++;
 
 				}
@@ -301,6 +305,75 @@ public class GlobalThreatQueryCreator {
 		});
 	}
 
+	public List<JsonNode> getGlobalSSH(String from, String to, String countryCode) {
+
+		QueryBuilder country = countryCode != null ? QueryBuilders.matchQuery("origin.srcCountryCode", countryCode)
+				: null;
+		query = from == null && to == null ? country
+				: QueryBuilders.filteredQuery(country, ESQueryCreator.createDateTimeRangeFilter(from, to));
+
+		searchQuery = new NativeSearchQueryBuilder().withQuery(query).withSearchType(SearchType.COUNT)
+				.withIndices(QueryConstants.INCIDENT_INDEX).withTypes("SshIncident")
+				.addAggregation(AggregationBuilders.filters("GlobalSsh")
+						.filter(sshSummary[0], FilterBuilders.termFilter("_type", "SshIncident")).filter(sshSummary[1],
+								FilterBuilders.boolFilter().should(FilterBuilders.termFilter("inputList.success", true),
+										FilterBuilders.nestedFilter("authList",
+												FilterBuilders.termFilter("authList.success", true)))))
+				.addAggregation(AggregationBuilders.nested("UsernamesUsed").path("authList")
+						.subAggregation(AggregationBuilders.cardinality("Usernames").field("authList.username")))
+				.addAggregation(AggregationBuilders.nested("PasswordsUsed").path("authList")
+						.subAggregation(AggregationBuilders.cardinality("Passwords").field("authList.password")))
+				.addAggregation(AggregationBuilders.nested("Inputs").path("inputList")
+						.subAggregation(AggregationBuilders.cardinality("In").field("inputList.command")))
+
+				.build();
+
+		return elasticsearchTemplate.query(searchQuery, new ResultsExtractor<List<JsonNode>>() {
+
+			@Override
+			public List<JsonNode> extract(SearchResponse response) {
+
+				System.out.println(response.toString());
+				List<JsonNode> jnode = new ArrayList<JsonNode>();
+				Map<String, Object> bucket = null;
+				ObjectMapper myObjectMapper = new ObjectMapper();
+				InternalFilters t = response.getAggregations().get("GlobalSsh");
+				int i = 0;
+				for (Bucket b : t.getBuckets()) {
+					bucket = new HashMap<String, Object>();
+					bucket.put("category", sshSummary[i].toString());
+					bucket.put("hits", b.getDocCount());
+					jnode.add(myObjectMapper.convertValue(bucket, JsonNode.class));
+					i++;
+
+				}
+
+				// Get Usernames
+				Nested nest = response.getAggregations().get("UsernamesUsed");
+				Cardinality cd = nest.getAggregations().get("Usernames");
+				bucket.put("category", sshSummary[2]);
+				bucket.put("hits", cd.getValue());
+				jnode.add(myObjectMapper.convertValue(bucket, JsonNode.class));
+
+				// Get Passwords
+				nest = response.getAggregations().get("PasswordsUsed");
+				cd = nest.getAggregations().get("Passwords");
+				bucket.put("category", sshSummary[3]);
+				bucket.put("hits", cd.getValue());
+				jnode.add(myObjectMapper.convertValue(bucket, JsonNode.class));
+
+				// Inputs
+				nest = response.getAggregations().get("Inputs");
+				cd = nest.getAggregations().get("In");
+				bucket.put("category", sshSummary[4]);
+				bucket.put("hits", cd.getValue());
+				jnode.add(myObjectMapper.convertValue(bucket, JsonNode.class));
+
+				return jnode;
+			}
+		});
+	}
+
 	public List<JsonNode> getGlobalDatabase(String from, String to, String countryCode) {
 
 		QueryBuilder country = countryCode != null ? QueryBuilders.matchQuery("origin.srcCountryCode", countryCode)
@@ -328,13 +401,12 @@ public class GlobalThreatQueryCreator {
 				int i = 1;
 				long sum = 0;
 				for (Bucket b : t.getBuckets()) {
-					if (b.getDocCount() > 0) {
-						bucket = new HashMap<String, Object>();
-						bucket.put("category", dbSummary[i].toString());
-						sum += b.getDocCount();
-						bucket.put("hits", String.valueOf(b.getDocCount()));
-						jnode.add(myObjectMapper.convertValue(bucket, JsonNode.class));
-					}
+					bucket = new HashMap<String, Object>();
+					bucket.put("category", dbSummary[i].toString());
+					sum += b.getDocCount();
+					bucket.put("hits", b.getDocCount());
+					jnode.add(myObjectMapper.convertValue(bucket, JsonNode.class));
+
 					i++;
 
 				}
@@ -342,7 +414,6 @@ public class GlobalThreatQueryCreator {
 				bucket.put("category", dbSummary[0]);
 				bucket.put("hits", sum);
 				jnode.add(myObjectMapper.convertValue(bucket, JsonNode.class));
-
 
 				return jnode;
 			}
@@ -358,8 +429,7 @@ public class GlobalThreatQueryCreator {
 
 		searchQuery = new NativeSearchQueryBuilder().withQuery(query).withSearchType(SearchType.COUNT)
 				.withIndices(QueryConstants.INCIDENT_INDEX).withTypes("MalwareIncident")
-				.addAggregation(AggregationBuilders.terms("Malwares").field("vtScan.VTscanResults.Kaspersky"))
-				.build();
+				.addAggregation(AggregationBuilders.terms("Malwares").field("vtScan.VTscanResults.Kaspersky")).build();
 
 		return elasticsearchTemplate.query(searchQuery, new ResultsExtractor<List<JsonNode>>() {
 
@@ -372,12 +442,10 @@ public class GlobalThreatQueryCreator {
 				ObjectMapper myObjectMapper = new ObjectMapper();
 				Terms t = response.getAggregations().get("Malwares");
 				for (Terms.Bucket b : t.getBuckets()) {
-					if (b.getDocCount() > 0) {
-						bucket = new HashMap<String, Object>();
-						bucket.put("malware", b.getKey());
-						bucket.put("hits", b.getDocCount());
-						jnode.add(myObjectMapper.convertValue(bucket, JsonNode.class));
-					}
+					bucket = new HashMap<String, Object>();
+					bucket.put("malware", b.getKey());
+					bucket.put("hits", b.getDocCount());
+					jnode.add(myObjectMapper.convertValue(bucket, JsonNode.class));
 
 				}
 
@@ -396,8 +464,7 @@ public class GlobalThreatQueryCreator {
 		searchQuery = new NativeSearchQueryBuilder().withQuery(query).withSearchType(SearchType.COUNT)
 				.withIndices(QueryConstants.INCIDENT_INDEX).withTypes("SipIncident")
 				.addAggregation(AggregationBuilders.terms("SipAttacks").field("_type"))
-				.addAggregation(AggregationBuilders.terms("SipMethod").field("sipMethod"))
-				.build();
+				.addAggregation(AggregationBuilders.terms("SipMethod").field("sipMethod")).build();
 
 		return elasticsearchTemplate.query(searchQuery, new ResultsExtractor<List<JsonNode>>() {
 
@@ -409,29 +476,29 @@ public class GlobalThreatQueryCreator {
 				Map<String, Object> bucket = new HashMap<String, Object>();
 				ObjectMapper myObjectMapper = new ObjectMapper();
 				Terms t = response.getAggregations().get("SipAttacks");
-				bucket.put("Sip Attacks", t.getBucketByKey("SipIncident").getDocCount());
+				bucket.put("category", "Total Attacks");
+				bucket.put("hits", t.getBucketByKey("SipIncident").getDocCount());
 				jnode.add(myObjectMapper.convertValue(bucket, JsonNode.class));
 				t = response.getAggregations().get("SipMethod");
 				for (Terms.Bucket b : t.getBuckets()) {
-					if (b.getDocCount() > 0) {
-						bucket = new HashMap<String, Object>();
-						if (b.getKey().equalsIgnoreCase("ACK")) {
+					bucket = new HashMap<String, Object>();
+					if (b.getKey().equalsIgnoreCase("ACK")) {
 
-							bucket.put("category", "Ack Flooding");
-						} else if (b.getKey().equalsIgnoreCase("REGISTER")) {
+						bucket.put("category", "Ack Flooding");
+					} else if (b.getKey().equalsIgnoreCase("REGISTER")) {
 
-							bucket.put("category", "Registrar Flooding");
-						} else if (b.getKey().equalsIgnoreCase("OPTIONS")) {
+						bucket.put("category", "Registrar Flooding");
+					} else if (b.getKey().equalsIgnoreCase("OPTIONS")) {
 
-							bucket.put("category", "Option Flooding");
-						}
-
-						bucket.put("hits", b.getDocCount());
-						jnode.add(myObjectMapper.convertValue(bucket, JsonNode.class));
+						bucket.put("category", "Option Flooding");
+					} else {
+						bucket.put("category", "Proxy Flooding");
 					}
 
-				}
+					bucket.put("hits", b.getDocCount());
+					jnode.add(myObjectMapper.convertValue(bucket, JsonNode.class));
 
+				}
 
 				return jnode;
 			}
@@ -505,12 +572,10 @@ public class GlobalThreatQueryCreator {
 				WebAttackCategories[] cat = WebAttackCategories.values();
 				int i = 0;
 				for (Bucket b : t.getBuckets()) {
-					if (b.getDocCount() > 0) {
-						bucket = new HashMap<String, Object>();
-						bucket.put("attack", cat[i].toString());
-						bucket.put("hits", b.getDocCount());
-						jnode.add(myObjectMapper.convertValue(bucket, JsonNode.class));
-					}
+					bucket = new HashMap<String, Object>();
+					bucket.put("category", cat[i].toString());
+					bucket.put("hits", b.getDocCount());
+					jnode.add(myObjectMapper.convertValue(bucket, JsonNode.class));
 					i++;
 
 				}
@@ -571,9 +636,8 @@ public class GlobalThreatQueryCreator {
 								.filter(WebAttackCategories.LFI_RFI.toString(),
 										FilterBuilders.queryFilter(
 												QueryBuilders.wildcardQuery("rulesList.ruleMessage", "*Inclusion*")))
-								.filter(WebAttackCategories.XSS.toString(),
-										FilterBuilders.queryFilter(
-												QueryBuilders.wildcardQuery("rulesList.ruleMessage", "*XSS*"))))
+								.filter(WebAttackCategories.XSS.toString(), FilterBuilders
+										.queryFilter(QueryBuilders.wildcardQuery("rulesList.ruleMessage", "*XSS*"))))
 
 				.build();
 		List<JsonNode> list = elasticsearchTemplate.query(searchQuery, new ResultsExtractor<List<JsonNode>>() {
@@ -588,12 +652,10 @@ public class GlobalThreatQueryCreator {
 				WebAttackCategories[] cat = WebAttackCategories.values();
 				int i = 0;
 				for (Bucket b : t.getBuckets()) {
-					if (b.getDocCount() > 0) {
-						bucket = new HashMap<String, Object>();
-						bucket.put("attack", cat[i].toString());
-						bucket.put("hits", b.getDocCount());
-						jnode.add(myObjectMapper.convertValue(bucket, JsonNode.class));
-					}
+					bucket = new HashMap<String, Object>();
+					bucket.put("category", cat[i].toString());
+					bucket.put("hits", b.getDocCount());
+					jnode.add(myObjectMapper.convertValue(bucket, JsonNode.class));
 					i++;
 
 				}
@@ -609,24 +671,25 @@ public class GlobalThreatQueryCreator {
 	public JsonNode getIPAnalysis(String from, String to, String ip) {
 
 		JsonNode ipNode = null;
-		final HashMap<String, Object> map = new HashMap<String, Object>();
+		HashMap<String, Object> map = new HashMap<String, Object>();
 		QueryBuilder ipQuery = QueryBuilders.matchQuery("srcIP", ip);
 
 		// build query
 		searchQuery = new NativeSearchQueryBuilder().withQuery(ipQuery).withSearchType(SearchType.QUERY_AND_FETCH)
 				.withIndices(QueryConstants.INCIDENT_INDEX).withTypes(QueryConstants.ALL_TYPES)
 				.withSort(SortBuilders.fieldSort("dateTime").order(SortOrder.ASC)).build();
-		JsonNode n = elasticsearchTemplate.query(searchQuery, new ResultsExtractor<JsonNode>() {
+		map = elasticsearchTemplate.query(searchQuery, new ResultsExtractor<HashMap<String, Object>>() {
 
 			@Override
-			public JsonNode extract(SearchResponse response) {
+			public HashMap<String, Object> extract(SearchResponse response) {
+				HashMap<String, Object> hmap = new HashMap<>();
 				if (response.getHits() != null) {
 					SearchHit hit = response.getHits().getAt(0);
-					map.put("firstSeen", hit.getSource().get("dateTime"));
-					map.put("origin", hit.getSource().get("origin"));
-					map.put("Total Attacks", response.getHits().getTotalHits());
+					hmap.put("firstSeen", hit.getSource().get("dateTime"));
+					hmap.put("origin", hit.getSource().get("origin"));
+					hmap.put("Total Attacks", response.getHits().getTotalHits());
 				}
-				return new ObjectMapper().convertValue(map, JsonNode.class);
+				return hmap;
 
 			}
 		});
@@ -634,19 +697,23 @@ public class GlobalThreatQueryCreator {
 		searchQuery = new NativeSearchQueryBuilder().withQuery(ipQuery).withSearchType(SearchType.QUERY_AND_FETCH)
 				.withIndices(QueryConstants.INCIDENT_INDEX).withTypes(QueryConstants.ALL_TYPES)
 				.withSort(SortBuilders.fieldSort("dateTime").order(SortOrder.DESC)).build();
-		n = elasticsearchTemplate.query(searchQuery, new ResultsExtractor<JsonNode>() {
+		map.putAll(elasticsearchTemplate.query(searchQuery, new ResultsExtractor<HashMap<String, Object>>() {
 
 			@Override
-			public JsonNode extract(SearchResponse response) {
+			public HashMap<String, Object> extract(SearchResponse response) {
+
+				HashMap<String, Object> hmap = new HashMap<String, Object>();
 
 				if (response.getHits() != null) {
 					SearchHit hit = response.getHits().getAt(0);
-					map.put("lastSeen", hit.getSource().get("dateTime"));
+					hmap.put("lastSeen", hit.getSource().get("dateTime"));
+
+					return hmap;
 				}
 				return null;
 
 			}
-		});
+		}));
 
 		FilterBuilder filter = FilterBuilders.boolFilter()
 				.should(FilterBuilders.termFilter("signatureClass", "attempted-recon"))
@@ -654,7 +721,7 @@ public class GlobalThreatQueryCreator {
 
 		query = from == null && to == null ? QueryBuilders.filteredQuery(ipQuery, filter)
 				: QueryBuilders.filteredQuery(ipQuery, FilterBuilders.boolFilter().should(filter)
-						.must(ESQueryCreator.createDateTimeRangeFilter(from, to), filter));
+						.must(ESQueryCreator.createDateTimeRangeFilter(from, to)));
 		searchQuery = new NativeSearchQueryBuilder().withQuery(query).withSearchType(SearchType.COUNT)
 				.withIndices(QueryConstants.INCIDENT_INDEX).withTypes(QueryConstants.ALL_TYPES).build();
 

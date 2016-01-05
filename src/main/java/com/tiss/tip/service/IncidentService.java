@@ -7,7 +7,6 @@ import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.tiss.tip.dal.ESQueryCreator;
-import com.tiss.tip.dal.GlobalThreatQueryCreator;
 
 @Service
 public class IncidentService {
@@ -16,8 +15,8 @@ public class IncidentService {
 	private ESQueryCreator queryCreator;
 	
 	
-	public List<JsonNode> getIPSrcCountry(String type, String from, String to, int size){
-		return queryCreator.getTopIPCountries(type, to, from, size);
+	public List<JsonNode> getIPSrcCountry(String type, String from, String to, int size, int minCount){
+		return queryCreator.getTopIPCountries(type, from, to, size, minCount);
 	}
 		
 	public List<JsonNode> getCountryIPs(String type, String from, String to, int size){

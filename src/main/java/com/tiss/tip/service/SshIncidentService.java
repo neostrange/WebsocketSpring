@@ -15,11 +15,11 @@ public class SshIncidentService {
 	private ESQueryCreator queryService;
 
 	public List<JsonNode> getTopUsernames(String from, String to, int size) {
-		return queryService.getTopSshUsernames(from, to, size);
+		return queryService.getTopSshUsernames(from, to, size, null);
 	}
 	
 	public List<JsonNode> getTopPasswords(String from, String to, int size) {
-		return queryService.getTopSshPasswords(from, to, size);
+		return queryService.getTopSshPasswords(from, to, size, null);
 	}
 	
 	public List<JsonNode> getTopUsernamePasswords(String from, String to, int size) {
@@ -27,9 +27,12 @@ public class SshIncidentService {
 	}
 	
 	public List<JsonNode> getTopTools(String from, String to, int size) {
-		return queryService.getTopSshTools(from, to, size);
+		return queryService.getTopSshTools(from, to, size, null);
 	}
 	
+	public List<JsonNode> getTopInputs(String from, String to, int size) {
+		return queryService.getTopSshInputs(from, to, size, null);
+	}
 
 	
 }

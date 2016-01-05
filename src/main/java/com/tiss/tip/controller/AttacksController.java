@@ -98,7 +98,7 @@ public class AttacksController {
 		return malIncidentService.getMalwareHashes(mal, from, to, size);
 	}
 
-	@RequestMapping(value = "/malware/name", method = RequestMethod.GET)
+	@RequestMapping(value = "/malware/names", method = RequestMethod.GET)
 	public @ResponseBody List<JsonNode> getTopMalwares(@RequestParam(required = false) String from,
 			@RequestParam(required = false) String to, @RequestParam(required = false, defaultValue = "0") int size) {
 		logger.info("Start getTopMalwares");
@@ -127,6 +127,13 @@ public class AttacksController {
 		logger.info("Start getTopSshTools");
 		return sshIncidentService.getTopTools(from, to, size);
 	}
+	
+	@RequestMapping(value = "/ssh/inputs", method = RequestMethod.GET)
+	public @ResponseBody List<JsonNode> getTopSshInputs(@RequestParam(required = false) String from,
+			@RequestParam(required = false) String to, @RequestParam(required = false, defaultValue = "0") int size) {
+		logger.info("Start getTopSshTools");
+		return sshIncidentService.getTopInputs(from, to, size);
+	}
 
 	@RequestMapping(value = "/web/categories", method = RequestMethod.GET)
 	public @ResponseBody List<JsonNode> getTopWebAttacks(@RequestParam(required = false) String from,
@@ -137,22 +144,22 @@ public class AttacksController {
 	}
 
 	//Defaults to all
-	@RequestMapping(value = "{type}/ips", method = RequestMethod.GET)
+	@RequestMapping(value = "/{type}/ips", method = RequestMethod.GET)
 	public @ResponseBody List<JsonNode> getIPCountry(@PathVariable("type") String type,
 			@RequestParam(required = false) String from, @RequestParam(required = false) String to,
-			@RequestParam(required = false, defaultValue = "0") int size) {
+			@RequestParam(required = false, defaultValue = "10") int size, @RequestParam(required = false, defaultValue = "10") int minCount) {
 		logger.info("Start getIPCountry from Incidents, for type [{}]", type);
 		if (type.equals("probing")) {
-			return netIncidentService.getTopProbingIPs(from, to, size);
+			return netIncidentService.getTopProbingIPs(from, to, size, minCount);
 		} else {
-			return incidentService.getIPSrcCountry(type, from, to, size);
+			return incidentService.getIPSrcCountry(type, from, to, size, minCount);
 		}
 	}
 	
 	@RequestMapping(value = "/{type}/unique-ips-per-country", method = RequestMethod.GET)
 	public @ResponseBody List<JsonNode> getCountryIPs(@PathVariable("type") String type,
 			@RequestParam(required = false) String from, @RequestParam(required = false) String to,
-			@RequestParam(required = false, defaultValue = "0") int size) {
+			@RequestParam(required = false, defaultValue = "10") int size) {
 		logger.info("Start getCountryIPs from Incidents, for type [{}]", type);
 		if (type.equals("probing")) {
 			return netIncidentService.getTopProbingCountriesUniqueIPs(from, to, size);
@@ -164,7 +171,7 @@ public class AttacksController {
 	@RequestMapping(value = "/{type}/countries", method = RequestMethod.GET)
 	public @ResponseBody List<JsonNode> getTopCountries(@PathVariable("type") String type,
 			@RequestParam(required = false) String from, @RequestParam(required = false) String to,
-			@RequestParam(required = false, defaultValue = "0") int size) {
+			@RequestParam(required = false, defaultValue = "10") int size) {
 		logger.info("Start getTopCountries from Incidents, for type [{}]", type);
 		if (type.equals("probing")) {
 			return netIncidentService.getTopProbingCountries(from, to, size);

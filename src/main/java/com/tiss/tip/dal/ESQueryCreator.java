@@ -1,7 +1,5 @@
 package com.tiss.tip.dal;
 
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -11,6 +9,7 @@ import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchType;
 import org.elasticsearch.common.collect.ImmutableMap;
 import org.elasticsearch.common.joda.time.DateTime;
+import org.elasticsearch.index.mapper.ip.IpFieldMapper;
 import org.elasticsearch.index.query.FilterBuilder;
 import org.elasticsearch.index.query.FilterBuilders;
 import org.elasticsearch.index.query.QueryBuilder;
@@ -18,6 +17,7 @@ import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.index.query.RangeFilterBuilder;
 import org.elasticsearch.search.aggregations.AggregationBuilders;
 import org.elasticsearch.search.aggregations.bucket.filters.Filters.Bucket;
+import org.elasticsearch.search.aggregations.bucket.filters.Filters;
 import org.elasticsearch.search.aggregations.bucket.filters.InternalFilters;
 import org.elasticsearch.search.aggregations.bucket.nested.Nested;
 import org.elasticsearch.search.aggregations.bucket.terms.Terms;
@@ -30,7 +30,6 @@ import org.springframework.data.elasticsearch.core.query.NativeSearchQueryBuilde
 import org.springframework.data.elasticsearch.core.query.SearchQuery;
 import org.springframework.stereotype.Component;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tiss.tip.utils.QueryConstants;
@@ -52,6 +51,9 @@ public class ESQueryCreator {
 
 	private static FilterBuilder filter;
 
+	public static final String[] attackCategories = { "SSH Attacks", "SIP Attacks", "Web Attacks", "Database Attacks",
+			"Reconnaissance", "Malware Infection", "Total Attacks" };
+
 	@Autowired
 	private ElasticsearchTemplate elasticsearchTemplate;
 
@@ -65,34 +67,32 @@ public class ESQueryCreator {
 
 		@Override
 		public List<JsonNode> extract(SearchResponse response) {
-
 			ObjectMapper myObjectMapper = new ObjectMapper();
 			List<JsonNode> jnode = new ArrayList<JsonNode>();
 			HashMap<String, Object> buckets = null;
-			Terms terms = response.getAggregations().get("TopIPs");
-			String ip = "";
-			Terms t = null;
-			Terms.Bucket buck = null;
-			logger.warn("Document Count Error is [{}]", terms.getDocCountError());
-			for (Terms.Bucket b : terms.getBuckets()) {
-				buckets = new HashMap<String, Object>();
-				try {
-					ip = InetAddress.getByName(b.getKey()).getHostAddress();
-				} catch (UnknownHostException e) {
-					logger.error("Error occurred while trying to convert from int [{}] to InetAddress", b.getKey(), e);
-				}
-				buckets.put("ip", ip);
-				buckets.put("hits", b.getDocCount());
-				if (b.getAggregations() != null) {
-					t = b.getAggregations().get("CountryCode");
-					buck = t.getBuckets().get(0);
-					buckets.put("countryCode", buck.getKey());
-					if (buck != null) {
-						t = buck.getAggregations().get("Country");
-						buckets.put("country", t.getBuckets().get(0).getKey());
+			if (response.getAggregations() != null) {
+				Terms terms = response.getAggregations().get("TopIPs");
+				String tmp = "";
+				Terms t = null;
+				Terms.Bucket buck = null;
+				logger.warn("Document Count Error is [{}]", terms.getDocCountError());
+				for (Terms.Bucket b : terms.getBuckets()) {
+					buckets = new HashMap<String, Object>();
+					tmp = IpFieldMapper.longToIp(Long.parseLong(b.getKey()));
+					buckets.put("ip", tmp);
+					buckets.put("hits", b.getDocCount());
+					if (b.getAggregations() != null) {
+						t = b.getAggregations().get("Country");
+						buck = t.getBuckets().size() > 0 ? t.getBuckets().get(0) : null;
+						if (buck != null) {
+							buckets.put("country", buck.getKey());
+							t = buck.getAggregations().get("CountryCode");
+							if (t.getBuckets().size() > 0)
+								buckets.put("countryCode", t.getBuckets().get(0).getKey());
+						}
 					}
+					jnode.add(myObjectMapper.convertValue(buckets, JsonNode.class));
 				}
-				jnode.add(myObjectMapper.convertValue(buckets, JsonNode.class));
 			}
 			return jnode;
 		}
@@ -106,38 +106,36 @@ public class ESQueryCreator {
 			List<JsonNode> jnode = new ArrayList<JsonNode>();
 			HashMap<String, Object> bucket = null;
 			HashMap<String, Object> subBucket = null;
-			Terms terms = response.getAggregations().get("TopCountries");
-			String ip = "";
-			logger.warn("Document Count Error is [{}]", terms.getDocCountError());
-			for (Terms.Bucket b : terms.getBuckets()) {
-				bucket = new HashMap<String, Object>();
-				bucket.put("countryCode", b.getKey());
-				bucket.put("hits", b.getDocCount());
-				Terms t = b.getAggregations().get("Country");
-				bucket.put("country", t.getBuckets().get(0).getKey());
-				// if subaggregation exists
-				if (b.getAggregations() != null) {
-					List<JsonNode> subNode = new ArrayList<JsonNode>();
-					t = b.getAggregations().get("IP");
-					// for sub aggregation result
-					for (Terms.Bucket sub : t.getBuckets()) {
-						subBucket = new HashMap<String, Object>();
-						try {
-							ip = InetAddress.getByName(sub.getKey()).getHostAddress();
-						} catch (UnknownHostException e) {
-							logger.error("Error occurred while trying to convert from int [{}] to InetAddress",
-									b.getKey(), e);
-						}
-						subBucket.put("ip", ip);
-						subBucket.put("hits", String.valueOf(sub.getDocCount()));
-						subNode.add(myObjectMapper.convertValue(subBucket, JsonNode.class));
+			if (response.getAggregations() != null) {
+				Terms terms = response.getAggregations().get("TopCountries");
+				String ip = "";
+				logger.warn("Document Count Error is [{}]", terms.getDocCountError());
+				for (Terms.Bucket b : terms.getBuckets()) {
+					bucket = new HashMap<String, Object>();
+					bucket.put("countryCode", b.getKey());
+					bucket.put("hits", b.getDocCount());
+					Terms t = b.getAggregations().get("Country");
+					bucket.put("country", t.getBuckets().get(0).getKey());
+					// if subaggregation exists
+					if (b.getAggregations() != null) {
+						List<JsonNode> subNode = new ArrayList<JsonNode>();
+						t = b.getAggregations().get("IP");
+						// for sub aggregation result
+						for (Terms.Bucket sub : t.getBuckets()) {
+							subBucket = new HashMap<String, Object>();
+							ip = IpFieldMapper.longToIp(Long.parseLong(sub.getKey()));
 
+							subBucket.put("ip", ip);
+							subBucket.put("hits", sub.getDocCount());
+							subNode.add(myObjectMapper.convertValue(subBucket, JsonNode.class));
+
+						}
+
+						bucket.put("uniqueIps", subNode);
 					}
 
-					bucket.put("uniqueIps", subNode);
+					jnode.add(myObjectMapper.convertValue(bucket, JsonNode.class));
 				}
-
-				jnode.add(myObjectMapper.convertValue(bucket, JsonNode.class));
 			}
 			return jnode;
 		}
@@ -151,20 +149,23 @@ public class ESQueryCreator {
 			ObjectMapper myObjectMapper = new ObjectMapper();
 			List<JsonNode> jnode = new ArrayList<JsonNode>();
 			HashMap<String, Object> buckets = null;
-			Terms terms = response.getAggregations().get("TopCountries");
-			logger.warn("Document Count Error is [{}]", terms.getDocCountError());
-			for (Terms.Bucket b : terms.getBuckets()) {
-				buckets = new HashMap<String, Object>();
-				buckets.put("countryCode", b.getKey());
-				if (b.getAggregations() != null) {
-					Terms t = b.getAggregations().get("Country");
-					buckets.put("country", t.getBuckets().get(0).getKey());
+			if (response.getAggregations() != null) {
+				Terms terms = response.getAggregations().get("TopCountries");
+				logger.warn("Document Count Error is [{}]", terms.getDocCountError());
+				for (Terms.Bucket b : terms.getBuckets()) {
+					buckets = new HashMap<String, Object>();
+					buckets.put("countryCode", b.getKey());
+					if (b.getAggregations() != null) {
+						Terms t = b.getAggregations().get("Country");
+						buckets.put("country", t.getBuckets().get(0).getKey());
+					}
+					buckets.put("hits", b.getDocCount());
+					jnode.add(myObjectMapper.convertValue(buckets, JsonNode.class));
 				}
-				buckets.put("hits", b.getDocCount());
-				jnode.add(myObjectMapper.convertValue(buckets, JsonNode.class));
 			}
 			return jnode;
 		}
+
 	};
 
 	/**
@@ -179,6 +180,7 @@ public class ESQueryCreator {
 	 */
 	public static FilterBuilder createDateTimeRangeFilter(String gte, String lte) {
 		FilterBuilder filter = new RangeFilterBuilder(QueryConstants.DATETIME).gte(gte).lte(lte);
+		System.out.println(filter);
 		return filter;
 	}
 
@@ -216,7 +218,7 @@ public class ESQueryCreator {
 	 * @param size
 	 * @return
 	 */
-	public List<JsonNode> getTopIPCountries(String type, String from, String to, int size) {
+	public List<JsonNode> getTopIPCountries(String type, String from, String to, int size, int minCount) {
 		query = from == null && to == null ? null
 				: QueryBuilders.filteredQuery(null, createDateTimeRangeFilter(from, to));
 		// Setting types to fetch data from
@@ -230,17 +232,15 @@ public class ESQueryCreator {
 		// build query
 		searchQuery = new NativeSearchQueryBuilder().withQuery(query).withSearchType(SearchType.COUNT)
 				.withIndices(QueryConstants.INCIDENT_INDEX).withTypes(tmp)
-				.addAggregation(AggregationBuilders.terms("TopIPs").size(size).minDocCount(10)
-						.showTermDocCountError(true).field("srcIP")
-						.subAggregation(AggregationBuilders.terms("CountryCode").field("origin.srcCountryCode")
-								.subAggregation(AggregationBuilders.terms("Country").field("origin.srcCountry"))))
+				.addAggregation(
+						AggregationBuilders.terms("TopIPs").size(size).minDocCount(minCount)
+								.showTermDocCountError(true).field(
+										"srcIP")
+								.subAggregation(AggregationBuilders.terms("Country").field("origin.srcCountry")
+										.subAggregation(AggregationBuilders.terms("CountryCode")
+												.field("origin.srcCountryCode"))))
 				.build();
-		try {
-			logger.debug("Query created: {}", new ObjectMapper().writeValueAsString(searchQuery));
-		} catch (JsonProcessingException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		}
+
 		return elasticsearchTemplate.query(searchQuery, topIPExtractor);
 
 	}
@@ -269,8 +269,8 @@ public class ESQueryCreator {
 		// build query
 		searchQuery = new NativeSearchQueryBuilder().withQuery(query).withSearchType(SearchType.COUNT)
 				.withIndices(QueryConstants.INCIDENT_INDEX).withTypes(tmp)
-				.addAggregation(AggregationBuilders.terms("TopCountries").size(size).minDocCount(10)
-						.showTermDocCountError(true).field("origin.srcCountryCode")
+				.addAggregation(AggregationBuilders.terms("TopCountries").size(size).showTermDocCountError(true)
+						.field("origin.srcCountryCode")
 						.subAggregation(AggregationBuilders.terms("Country").field("origin.srcCountry"))
 						.subAggregation(AggregationBuilders.terms("IP").field("srcIP")))
 				.build();
@@ -303,12 +303,48 @@ public class ESQueryCreator {
 		// build query
 		searchQuery = new NativeSearchQueryBuilder().withQuery(query).withSearchType(SearchType.COUNT)
 				.withIndices(QueryConstants.INCIDENT_INDEX).withTypes(tmp)
-				.addAggregation(AggregationBuilders.terms("TopCountries").size(size).minDocCount(10)
-						.showTermDocCountError(true).field("origin.srcCountryCode")
+				.addAggregation(AggregationBuilders.terms("TopCountries").size(size).showTermDocCountError(true)
+						.field("origin.srcCountryCode")
 						.subAggregation(AggregationBuilders.terms("Country").field("origin.srcCountry")))
 				.build();
 
 		return elasticsearchTemplate.query(searchQuery, topCountryExtractor);
+
+	}
+
+	public List<JsonNode> getRTCounts(int interval) {
+
+		final String[] attacks = { "malware", "sip", "web" };
+		query = QueryBuilders.filteredQuery(null, createDateTimeRTFilter(interval));
+		// build query
+		searchQuery = new NativeSearchQueryBuilder().withQuery(query).withSearchType(SearchType.COUNT)
+				.withIndices(QueryConstants.INCIDENT_INDEX).withTypes(QueryConstants.ALL_TYPES)
+				.addAggregation(AggregationBuilders.filters("Agg")
+						.filter(attacks[0], FilterBuilders.termFilter("_type", "MalwareIncident"))
+						.filter(attacks[1], FilterBuilders.termFilter("_type", "SipIncident"))
+						.filter(attacks[2], FilterBuilders.termFilter("_type", "WebIncident")))
+				.build();
+		return elasticsearchTemplate.query(searchQuery, new ResultsExtractor<List<JsonNode>>() {
+
+			@Override
+			public List<JsonNode> extract(SearchResponse response) {
+
+				System.out.println(response.toString());
+				List<JsonNode> jnode = new ArrayList<JsonNode>();
+				Map<String, Object> bucket = new HashMap<String, Object>();
+				ObjectMapper myObjectMapper = new ObjectMapper();
+				InternalFilters t = response.getAggregations().get("Agg");
+				int i = 0;
+				for (Filters.Bucket b : t.getBuckets()) {
+					bucket.put(attacks[i], b.getDocCount());
+					i++;
+
+				}
+
+				jnode.add(myObjectMapper.convertValue(bucket, JsonNode.class));
+				return jnode;
+			}
+		});
 
 	}
 
@@ -348,13 +384,16 @@ public class ESQueryCreator {
 				ObjectMapper myObjectMapper = new ObjectMapper();
 				List<JsonNode> jnode = new ArrayList<JsonNode>();
 				HashMap<String, Object> buckets = null;
-				Terms terms = response.getAggregations().get("Hashes");
-				logger.warn("Document Count Error is [{}]", terms.getDocCountError());
-				for (Terms.Bucket b : terms.getBuckets()) {
-					buckets = new HashMap<String, Object>();
-					buckets.put("hash", b.getKey());
-					buckets.put("hits", b.getDocCount());
-					jnode.add(myObjectMapper.convertValue(buckets, JsonNode.class));
+				if (response.getAggregations() != null) {
+					Terms terms = response.getAggregations().get("Hashes");
+					logger.warn("Document Count Error is [{}]", terms.getDocCountError());
+					for (Terms.Bucket b : terms.getBuckets()) {
+						buckets = new HashMap<String, Object>();
+						buckets.put("hash", b.getKey());
+						buckets.put("hits", b.getDocCount());
+						jnode.add(myObjectMapper.convertValue(buckets, JsonNode.class));
+					}
+					return jnode;
 				}
 				return jnode;
 			}
@@ -458,7 +497,7 @@ public class ESQueryCreator {
 	 * @param size
 	 * @return
 	 */
-	public List<JsonNode> getTopProbingIPs(String from, String to, int size) {
+	public List<JsonNode> getTopProbingIPs(String from, String to, int size, int minDocCount) {
 
 		filter = FilterBuilders.boolFilter().should(FilterBuilders.termFilter("signatureClass", "attempted-recon"))
 				.should(FilterBuilders.termFilter("signatureClass", "misc-activity"));
@@ -470,10 +509,13 @@ public class ESQueryCreator {
 		// build query
 		searchQuery = new NativeSearchQueryBuilder().withQuery(query).withSearchType(SearchType.COUNT)
 				.withIndices(QueryConstants.INCIDENT_INDEX).withTypes((String) ES_TYPES.get("network"))
-				.addAggregation(AggregationBuilders.terms("TopIPs").size(size).minDocCount(10)
-						.showTermDocCountError(true).field("srcIP")
-						.subAggregation(AggregationBuilders.terms("CountryCode").field("origin.srcCountryCode")
-								.subAggregation(AggregationBuilders.terms("Country").field("origin.srcCountry"))))
+				.addAggregation(
+						AggregationBuilders.terms("TopIPs").size(size).minDocCount(minDocCount)
+								.showTermDocCountError(true).field(
+										"srcIP")
+								.subAggregation(AggregationBuilders.terms("Country").field("origin.srcCountry")
+										.subAggregation(AggregationBuilders.terms("CountryCode")
+												.field("origin.srcCountryCode"))))
 				.build();
 		return elasticsearchTemplate.query(searchQuery, topIPExtractor);
 
@@ -501,8 +543,8 @@ public class ESQueryCreator {
 		// build query
 		searchQuery = new NativeSearchQueryBuilder().withQuery(query).withSearchType(SearchType.COUNT)
 				.withIndices(QueryConstants.INCIDENT_INDEX).withTypes((String) ES_TYPES.get("network"))
-				.addAggregation(AggregationBuilders.terms("TopCountries").size(size).minDocCount(10)
-						.showTermDocCountError(true).field("origin.srcCountryCode")
+				.addAggregation(AggregationBuilders.terms("TopCountries").size(size).showTermDocCountError(true)
+						.field("origin.srcCountryCode")
 						.subAggregation(AggregationBuilders.terms("Country").field("origin.srcCountry"))
 						.subAggregation(AggregationBuilders.terms("IP").field("srcIP")))
 				.build();
@@ -529,8 +571,8 @@ public class ESQueryCreator {
 		// build query
 		searchQuery = new NativeSearchQueryBuilder().withQuery(query).withSearchType(SearchType.COUNT)
 				.withIndices(QueryConstants.INCIDENT_INDEX).withTypes((String) ES_TYPES.get("network"))
-				.addAggregation(AggregationBuilders.terms("TopCountries").size(size).minDocCount(10)
-						.showTermDocCountError(true).field("origin.srcCountryCode")
+				.addAggregation(AggregationBuilders.terms("TopCountries").size(size).showTermDocCountError(true)
+						.field("origin.srcCountryCode")
 						.subAggregation(AggregationBuilders.terms("Country").field("origin.srcCountry")))
 				.build();
 
@@ -545,10 +587,13 @@ public class ESQueryCreator {
 	 * @param size
 	 * @return
 	 */
-	public List<JsonNode> getTopSipTools(String from, String to, int size) {
+	public List<JsonNode> getTopSipTools(String from, String to, int size, String countryCode) {
 
-		query = from == null && to == null ? null
-				: QueryBuilders.filteredQuery(null, createDateTimeRangeFilter(from, to));
+		QueryBuilder country = countryCode != null ? QueryBuilders.matchQuery("origin.srcCountryCode", countryCode)
+				: null;
+
+		query = from == null && to == null ? country
+				: QueryBuilders.filteredQuery(country, createDateTimeRangeFilter(from, to));
 		// build query
 		searchQuery = new NativeSearchQueryBuilder().withQuery(query).withSearchType(SearchType.COUNT)
 				.withIndices(QueryConstants.INCIDENT_INDEX).withTypes((String) ES_TYPES.get("sip"))
@@ -585,10 +630,12 @@ public class ESQueryCreator {
 	 * @param size
 	 * @return
 	 */
-	public List<JsonNode> getTopSipMethods(String from, String to, int size) {
+	public List<JsonNode> getTopSipMethods(String from, String to, int size, String countryCode) {
+		QueryBuilder country = countryCode != null ? QueryBuilders.matchQuery("origin.srcCountryCode", countryCode)
+				: null;
 
-		query = from == null && to == null ? null
-				: QueryBuilders.filteredQuery(null, createDateTimeRangeFilter(from, to));
+		query = from == null && to == null ? country
+				: QueryBuilders.filteredQuery(country, createDateTimeRangeFilter(from, to));
 		// build query
 		searchQuery = new NativeSearchQueryBuilder().withQuery(query).withSearchType(SearchType.COUNT)
 				.withIndices(QueryConstants.INCIDENT_INDEX).withTypes((String) ES_TYPES.get("sip"))
@@ -625,21 +672,27 @@ public class ESQueryCreator {
 	 * @param size
 	 * @return
 	 */
-	public List<JsonNode> getSipRegistrarFloodingAttacks(String from, String to, int size) {
+	public List<JsonNode> getSipRegistrarFloodingAttacks(String from, String to, int size, String countryCode) {
+
+		QueryBuilder country = countryCode != null ? QueryBuilders.matchQuery("origin.srcCountryCode", countryCode)
+				: null;
 
 		filter = FilterBuilders.termFilter("sipMethod", "REGISTER");
 
-		query = from == null && to == null ? QueryBuilders.filteredQuery(null, filter)
-				: QueryBuilders.filteredQuery(null,
+		query = from == null && to == null ? QueryBuilders.filteredQuery(country, filter)
+				: QueryBuilders.filteredQuery(country,
 						FilterBuilders.andFilter(filter, createDateTimeRangeFilter(from, to)));
 
 		// build query
 		searchQuery = new NativeSearchQueryBuilder().withQuery(query).withSearchType(SearchType.COUNT)
 				.withIndices(QueryConstants.INCIDENT_INDEX).withTypes((String) ES_TYPES.get("sip"))
-				.addAggregation(AggregationBuilders.terms("TopIPs").size(size).minDocCount(10)
-						.showTermDocCountError(true).field("srcIP")
-						.subAggregation(AggregationBuilders.terms("CountryCode").field("origin.srcCountryCode")
-								.subAggregation(AggregationBuilders.terms("Country").field("origin.srcCountry"))))
+				.addAggregation(
+						AggregationBuilders.terms("TopIPs").size(size)
+								.showTermDocCountError(true).field(
+										"srcIP")
+								.subAggregation(AggregationBuilders.terms("Country").field("origin.srcCountry")
+										.subAggregation(AggregationBuilders.terms("CountryCode")
+												.field("origin.srcCountryCode"))))
 				.build();
 
 		return elasticsearchTemplate.query(searchQuery, topIPExtractor);
@@ -653,21 +706,27 @@ public class ESQueryCreator {
 	 * @param size
 	 * @return
 	 */
-	public List<JsonNode> getSipOptionsFloodingAttacks(String from, String to, int size) {
+	public List<JsonNode> getSipOptionsFloodingAttacks(String from, String to, int size, String countryCode) {
+
+		QueryBuilder country = countryCode != null ? QueryBuilders.matchQuery("origin.srcCountryCode", countryCode)
+				: null;
 
 		filter = FilterBuilders.termFilter("sipMethod", "OPTIONS");
 
-		query = from == null && to == null ? QueryBuilders.filteredQuery(null, filter)
-				: QueryBuilders.filteredQuery(null,
+		query = from == null && to == null ? QueryBuilders.filteredQuery(country, filter)
+				: QueryBuilders.filteredQuery(country,
 						FilterBuilders.andFilter(filter, createDateTimeRangeFilter(from, to)));
 
 		// build query
 		searchQuery = new NativeSearchQueryBuilder().withQuery(query).withSearchType(SearchType.COUNT)
 				.withIndices(QueryConstants.INCIDENT_INDEX).withTypes((String) ES_TYPES.get("sip"))
-				.addAggregation(AggregationBuilders.terms("TopIPs").size(size).minDocCount(10)
-						.showTermDocCountError(true).field("srcIP")
-						.subAggregation(AggregationBuilders.terms("CountryCode").field("origin.srcCountryCode")
-								.subAggregation(AggregationBuilders.terms("Country").field("origin.srcCountry"))))
+				.addAggregation(
+						AggregationBuilders.terms("TopIPs").size(size)
+								.showTermDocCountError(true).field(
+										"srcIP")
+								.subAggregation(AggregationBuilders.terms("Country").field("origin.srcCountry")
+										.subAggregation(AggregationBuilders.terms("CountryCode")
+												.field("origin.srcCountryCode"))))
 				.build();
 
 		return elasticsearchTemplate.query(searchQuery, topIPExtractor);
@@ -681,21 +740,27 @@ public class ESQueryCreator {
 	 * @param size
 	 * @return
 	 */
-	public List<JsonNode> getSipProxyFloodingAttacks(String from, String to, int size) {
+	public List<JsonNode> getSipProxyFloodingAttacks(String from, String to, int size, String countryCode) {
+
+		QueryBuilder country = countryCode != null ? QueryBuilders.matchQuery("origin.srcCountryCode", countryCode)
+				: null;
 
 		filter = FilterBuilders.termFilter("sipMethod", "INVITE");
 
-		query = from == null && to == null ? QueryBuilders.filteredQuery(null, filter)
-				: QueryBuilders.filteredQuery(null,
+		query = from == null && to == null ? QueryBuilders.filteredQuery(country, filter)
+				: QueryBuilders.filteredQuery(country,
 						FilterBuilders.andFilter(filter, createDateTimeRangeFilter(from, to)));
 
 		// build query
 		searchQuery = new NativeSearchQueryBuilder().withQuery(query).withSearchType(SearchType.COUNT)
 				.withIndices(QueryConstants.INCIDENT_INDEX).withTypes((String) ES_TYPES.get("sip"))
-				.addAggregation(AggregationBuilders.terms("TopIPs").size(size).minDocCount(10)
-						.showTermDocCountError(true).field("srcIP")
-						.subAggregation(AggregationBuilders.terms("CountryCode").field("origin.srcCountryCode")
-								.subAggregation(AggregationBuilders.terms("Country").field("origin.srcCountry"))))
+				.addAggregation(
+						AggregationBuilders.terms("TopIPs").size(size)
+								.showTermDocCountError(true).field(
+										"srcIP")
+								.subAggregation(AggregationBuilders.terms("Country").field("origin.srcCountry")
+										.subAggregation(AggregationBuilders.terms("CountryCode")
+												.field("origin.srcCountryCode"))))
 				.build();
 
 		return elasticsearchTemplate.query(searchQuery, topIPExtractor);
@@ -709,21 +774,25 @@ public class ESQueryCreator {
 	 * @param size
 	 * @return
 	 */
-	public List<JsonNode> getSipAckFloodingAttacks(String from, String to, int size) {
-
+	public List<JsonNode> getSipAckFloodingAttacks(String from, String to, int size, String countryCode) {
+		QueryBuilder country = countryCode != null ? QueryBuilders.matchQuery("origin.srcCountryCode", countryCode)
+				: null;
 		filter = FilterBuilders.termFilter("sipMethod", "ACK");
 
-		query = from == null && to == null ? QueryBuilders.filteredQuery(null, filter)
-				: QueryBuilders.filteredQuery(null,
+		query = from == null && to == null ? QueryBuilders.filteredQuery(country, filter)
+				: QueryBuilders.filteredQuery(country,
 						FilterBuilders.andFilter(filter, createDateTimeRangeFilter(from, to)));
 
 		// build query
 		searchQuery = new NativeSearchQueryBuilder().withQuery(query).withSearchType(SearchType.COUNT)
 				.withIndices(QueryConstants.INCIDENT_INDEX).withTypes((String) ES_TYPES.get("sip"))
-				.addAggregation(AggregationBuilders.terms("TopIPs").size(size).minDocCount(10)
-						.showTermDocCountError(true).field("srcIP")
-						.subAggregation(AggregationBuilders.terms("CountryCode").field("origin.srcCountryCode")
-								.subAggregation(AggregationBuilders.terms("Country").field("origin.srcCountry"))))
+				.addAggregation(
+						AggregationBuilders.terms("TopIPs").size(size)
+								.showTermDocCountError(true).field(
+										"srcIP")
+								.subAggregation(AggregationBuilders.terms("Country").field("origin.srcCountry")
+										.subAggregation(AggregationBuilders.terms("CountryCode")
+												.field("origin.srcCountryCode"))))
 				.build();
 
 		return elasticsearchTemplate.query(searchQuery, topIPExtractor);
@@ -737,15 +806,16 @@ public class ESQueryCreator {
 	 * @param size
 	 * @return
 	 */
-	public List<JsonNode> getTopSshUsernames(String from, String to, int size) {
-
-		query = from == null && to == null ? null
-				: QueryBuilders.filteredQuery(null, createDateTimeRangeFilter(from, to));
+	public List<JsonNode> getTopSshUsernames(String from, String to, int size, String countryCode) {
+		QueryBuilder country = countryCode != null ? QueryBuilders.matchQuery("origin.srcCountryCode", countryCode)
+				: null;
+		query = from == null && to == null ? country
+				: QueryBuilders.filteredQuery(country, ESQueryCreator.createDateTimeRangeFilter(from, to));
 		// build query
-		searchQuery = new NativeSearchQueryBuilder().withQuery(query).withSearchType(SearchType.COUNT)
+		searchQuery = new NativeSearchQueryBuilder().withQuery(query).withSearchType(SearchType.QUERY_AND_FETCH)
 				.withIndices(QueryConstants.INCIDENT_INDEX).withTypes((String) ES_TYPES.get("ssh"))
 				.addAggregation(AggregationBuilders.nested("TopUsernames").path("authList")
-						.subAggregation(AggregationBuilders.terms("Usernames").field("authList.username")))
+						.subAggregation(AggregationBuilders.terms("Usernames").field("authList.username").size(size)))
 				.build();
 
 		return elasticsearchTemplate.query(searchQuery, new ResultsExtractor<List<JsonNode>>() {
@@ -785,10 +855,12 @@ public class ESQueryCreator {
 				: QueryBuilders.filteredQuery(null, createDateTimeRangeFilter(from, to));
 		// build query
 		searchQuery = new NativeSearchQueryBuilder().withQuery(query).withSearchType(SearchType.COUNT)
-				.withIndices(QueryConstants.INCIDENT_INDEX).withTypes((String) ES_TYPES.get("ssh"))
-				.addAggregation(AggregationBuilders.nested("TopUsernames").path("authList")
-						.subAggregation(AggregationBuilders.terms("Usernames").field("authList.username")
-								.subAggregation(AggregationBuilders.terms("Passwords").field("authList.password"))))
+				.withIndices(QueryConstants.INCIDENT_INDEX)
+				.withTypes(
+						(String) ES_TYPES.get("ssh"))
+				.addAggregation(AggregationBuilders.nested("TopUsernames").path("authList").subAggregation(
+						AggregationBuilders.terms("Usernames").field("authList.username").subAggregation(
+								AggregationBuilders.terms("Passwords").field("authList.password").size(size))))
 				.build();
 
 		return elasticsearchTemplate.query(searchQuery, new ResultsExtractor<List<JsonNode>>() {
@@ -814,7 +886,7 @@ public class ESQueryCreator {
 							buckets = new HashMap<String, Object>();
 							buckets.put("username", uname);
 							buckets.put("password", sub.getKey());
-							buckets.put("hits", String.valueOf(sub.getDocCount()));
+							buckets.put("hits", sub.getDocCount());
 							jnode.add(myObjectMapper.convertValue(buckets, JsonNode.class));
 						}
 					}
@@ -825,15 +897,17 @@ public class ESQueryCreator {
 
 	}
 
-	public List<JsonNode> getTopSshPasswords(String from, String to, int size) {
+	public List<JsonNode> getTopSshPasswords(String from, String to, int size, String countryCode) {
 
-		query = from == null && to == null ? null
-				: QueryBuilders.filteredQuery(null, createDateTimeRangeFilter(from, to));
+		QueryBuilder country = countryCode != null ? QueryBuilders.matchQuery("origin.srcCountryCode", countryCode)
+				: null;
+		query = from == null && to == null ? country
+				: QueryBuilders.filteredQuery(country, ESQueryCreator.createDateTimeRangeFilter(from, to));
 		// build query
 		searchQuery = new NativeSearchQueryBuilder().withQuery(query).withSearchType(SearchType.COUNT)
 				.withIndices(QueryConstants.INCIDENT_INDEX).withTypes((String) ES_TYPES.get("ssh"))
 				.addAggregation(AggregationBuilders.nested("TopPasswords").path("authList")
-						.subAggregation(AggregationBuilders.terms("Passwords").field("authList.password").size(0)))
+						.subAggregation(AggregationBuilders.terms("Passwords").field("authList.password").size(size)))
 				.build();
 
 		return elasticsearchTemplate.query(searchQuery, new ResultsExtractor<List<JsonNode>>() {
@@ -860,6 +934,43 @@ public class ESQueryCreator {
 
 	}
 
+	public List<JsonNode> getTopSshInputs(String from, String to, int size, String countryCode) {
+
+		QueryBuilder country = countryCode != null ? QueryBuilders.matchQuery("origin.srcCountryCode", countryCode)
+				: null;
+		query = from == null && to == null ? country
+				: QueryBuilders.filteredQuery(country, ESQueryCreator.createDateTimeRangeFilter(from, to));
+		// build query
+		searchQuery = new NativeSearchQueryBuilder().withQuery(query).withSearchType(SearchType.COUNT)
+				.withIndices(QueryConstants.INCIDENT_INDEX).withTypes((String) ES_TYPES.get("ssh"))
+				.addAggregation(AggregationBuilders.nested("TopInputs").path("inputList")
+						.subAggregation(AggregationBuilders.terms("In").field("inputList.command").size(size)))
+				.build();
+
+		return elasticsearchTemplate.query(searchQuery, new ResultsExtractor<List<JsonNode>>() {
+
+			@Override
+			public List<JsonNode> extract(SearchResponse response) {
+
+				ObjectMapper myObjectMapper = new ObjectMapper();
+				List<JsonNode> jnode = new ArrayList<JsonNode>();
+				HashMap<String, Object> buckets = null;
+				Nested nest = response.getAggregations().get("TopInputs");
+				Terms terms = nest.getAggregations().get("In");
+				// logger.warn("Document Count Error is [{}]",
+				// terms.getDocCountError());
+				for (Terms.Bucket b : terms.getBuckets()) {
+					buckets = new HashMap<String, Object>();
+					buckets.put("input", b.getKey());
+					buckets.put("hits", b.getDocCount());
+					jnode.add(myObjectMapper.convertValue(buckets, JsonNode.class));
+				}
+				return jnode;
+			}
+		});
+
+	}
+
 	/**
 	 * 
 	 * @param from
@@ -867,9 +978,11 @@ public class ESQueryCreator {
 	 * @param size
 	 * @return
 	 */
-	public List<JsonNode> getTopSshTools(String from, String to, int size) {
-		query = from == null && to == null ? null
-				: QueryBuilders.filteredQuery(null, createDateTimeRangeFilter(from, to));
+	public List<JsonNode> getTopSshTools(String from, String to, int size, String countryCode) {
+		QueryBuilder country = countryCode != null ? QueryBuilders.matchQuery("origin.srcCountryCode", countryCode)
+				: null;
+		query = from == null && to == null ? country
+				: QueryBuilders.filteredQuery(country, ESQueryCreator.createDateTimeRangeFilter(from, to));
 		// build query
 		searchQuery = new NativeSearchQueryBuilder().withQuery(query).withSearchType(SearchType.COUNT)
 				.withIndices(QueryConstants.INCIDENT_INDEX).withTypes((String) ES_TYPES.get("ssh"))

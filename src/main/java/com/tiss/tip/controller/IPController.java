@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.tiss.tip.model.Incident;
 import com.tiss.tip.service.IPService;
 
 @Controller
@@ -29,15 +28,42 @@ public class IPController {
 	public @ResponseBody JsonNode getIPSummary(@RequestParam(required = false) String from,
 			@RequestParam(required = false) String to, @PathVariable String ip) {
 		logger.info("Start getIPSummary");
-		return ipService.getIPSummary(from, to, ip);
+		return ipService.getIPSummary(ip);
 	}
 
 	@RequestMapping(value = "/{ip}/history", method = RequestMethod.GET)
-	public @ResponseBody List<Incident> getIPHistory(@RequestParam(required = false) String from,
+	public @ResponseBody List<JsonNode> getIPHistory(@RequestParam(required = false) String from,
 			@RequestParam(required = false) String to, @PathVariable String ip,
 			@RequestParam(required = false, defaultValue = "10") int size) {
 		logger.info("Start getIPSummary");
 		return ipService.getIPHistory(from, to, ip, size);
+	}
+	
+	@RequestMapping(value = "/{ip}/geo-info", method = RequestMethod.GET)
+	public @ResponseBody JsonNode getIPGeoInfo(@PathVariable String ip) {
+		logger.info("Start getIPGeoInfo");
+		return ipService.getIPGeoInfo(ip);
+	}
+	
+	@RequestMapping(value = "/{ip}/activity-pulse", method = RequestMethod.GET)
+	public @ResponseBody List<JsonNode> getIPActivityPulse(@RequestParam(required = false) String from,
+			@RequestParam(required = false) String to, @PathVariable String ip) {
+		logger.info("Start getIPSummary");
+		return ipService.getIPActivityTimeline(from, to, ip);
+	}
+	
+	@RequestMapping(value = "/{ip}/activity-summary", method = RequestMethod.GET)
+	public @ResponseBody List<JsonNode> getIPActivity(@RequestParam(required = false) String from,
+			@RequestParam(required = false) String to, @PathVariable String ip) {
+		logger.info("Start getIPSummary");
+		return ipService.getIPActivitySummary(from, to, ip);
+	}
+	
+	@RequestMapping(value = "/{ip}/probing-attempts", method = RequestMethod.GET)
+	public @ResponseBody JsonNode getIPProbingAttemptsCount(@RequestParam(required = false) String from,
+			@RequestParam(required = false) String to, @PathVariable String ip) {
+		logger.info("Start getIPSummary");
+		return ipService.getIPProbingAttempts(from, to, ip);
 	}
 
 }

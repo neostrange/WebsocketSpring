@@ -18,6 +18,9 @@ public class NRTService {
 		return queryService.createRTIncidentsQuery(interval);
 	}
 	
+	public List<JsonNode> getRecentActivityCounts(int interval) {
+		return queryService.getRTCounts(interval);
+	}
 	
 
 }

@@ -14,8 +14,8 @@ public class NetworkIncidentService {
 	@Autowired
 	private ESQueryCreator queryService;
 
-	public List<JsonNode> getTopProbingIPs(String from, String to, int size) {
-		return queryService.getTopProbingIPs(from, to, size);
+	public List<JsonNode> getTopProbingIPs(String from, String to, int size, int minCount) {
+		return queryService.getTopProbingIPs(from, to, size, minCount);
 	}
 
 	public List<JsonNode> getTopProbingCountriesUniqueIPs(String from, String to, int size) {

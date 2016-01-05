@@ -10,36 +10,32 @@ import com.tiss.tip.dal.ESQueryCreator;
 
 @Service
 public class SipIncidentService {
-	
+
 	@Autowired
 	private ESQueryCreator queryService;
-	
 
 	public List<JsonNode> getTopTools(String from, String to, int size) {
-		return queryService.getTopSipTools(from, to, size);
+		return queryService.getTopSipTools(from, to, size, null);
 	}
 
 	public List<JsonNode> getTopMethods(String from, String to, int size) {
-		return queryService.getTopSipMethods(from, to, size);
+		return queryService.getTopSipMethods(from, to, size, null);
 	}
 
 	public List<JsonNode> getRegistrarFloodingAttacks(String from, String to, int size) {
-		return queryService.getSipRegistrarFloodingAttacks(from, to, size);
+		return queryService.getSipRegistrarFloodingAttacks(from, to, size, null);
 	}
-	
+
 	public List<JsonNode> getOptionsFloodingAttacks(String from, String to, int size) {
-		return queryService.getSipOptionsFloodingAttacks(from, to, size);
+		return queryService.getSipOptionsFloodingAttacks(from, to, size, null);
 	}
-	
+
 	public List<JsonNode> getProxyFloodingAttacks(String from, String to, int size) {
-		return queryService.getSipProxyFloodingAttacks(from, to, size);
-		}
-	
-	public List<JsonNode> getAckFloodingAttacks(String from, String to, int size) {
-		return queryService.getSipAckFloodingAttacks(from, to, size);
+		return queryService.getSipProxyFloodingAttacks(from, to, size, null);
 	}
 
+	public List<JsonNode> getAckFloodingAttacks(String from, String to, int size) {
+		return queryService.getSipAckFloodingAttacks(from, to, size, null);
+	}
 
-	
-	
 }

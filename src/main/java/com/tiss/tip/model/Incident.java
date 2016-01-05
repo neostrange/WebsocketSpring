@@ -67,6 +67,11 @@ public class Incident implements Serializable {
 	private String protocol;
 	
 	/**
+	 * For cases where there is a separate application layer protocol, like SIP for VoIP 
+	 */
+	private String appLayerProtocol;
+	
+	/**
 	 * The information regarding the origin of the attack.
 	 */
 	@Field(type = FieldType.Object)
@@ -266,6 +271,24 @@ public class Incident implements Serializable {
 	public void setProtocol(String protocol) {
 		log.trace("Set protocol to [{}]", protocol);
 		this.protocol = protocol;
+	}
+
+	/**
+	 * Gets the setAppLayerProtocol for cases where there is a separate application layer protocol, like SIP for VoIP.
+	 *
+	 * @return String
+	 */
+	public String getAppLayerProtocol() {
+		return appLayerProtocol;
+	}
+
+	/**
+	 * Sets the setAppLayerProtocol for cases where there is a separate application layer protocol, like SIP for VoIP.
+	 *
+	 * @param appLayerProtocol the new for cases where there is a separate application layer protocol, like SIP for VoIP
+	 */
+	public void setAppLayerProtocol(String appLayerProtocol) {
+		this.appLayerProtocol = appLayerProtocol;
 	}
 
 	/**
